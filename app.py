@@ -15,7 +15,6 @@ def init_db():
 def setup_sample_admin():
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
-    # Create a sample admin user if not exists
     c.execute('SELECT * FROM users WHERE username = ?', ('admin',))
     if not c.fetchone():
         c.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
@@ -78,6 +77,8 @@ if "favorites" not in st.session_state:
     st.session_state.favorites = []
 if "order_placed" not in st.session_state:
     st.session_state.order_placed = False
+if "username" not in st.session_state:
+    st.session_state.username = None  # Store the username of the logged-in user
 
 init_db()
 setup_sample_admin()
@@ -95,6 +96,7 @@ if st.session_state.page == "Login":
             if role == 'admin':
                 st.session_state.admin = True
             st.session_state.authenticated = True
+            st.session_state.username = username  # Store the username
             st.session_state.page = "Ordering" if role == 'user' else "AdminDashboard"
         else:
             st.error("Invalid username or password")
@@ -201,24 +203,27 @@ elif st.session_state.page == "Ordering":
 
     elif menu_option == "Track Order":
         if st.session_state.order_placed:
-            process_order()
+            st.write("Tracking your order...")
+            for status in order_status:
+                st.write(f"Status: {status}")
+                time.sleep(2)
         else:
-            st.write("No order placed yet.")
+            st.write("No orders placed yet.")
 
     elif menu_option == "Favorites":
-        st.write("Your Favorite Items:")
+        st.write("Your Favorites:")
         if st.session_state.favorites:
             for item in st.session_state.favorites:
                 st.write(f"- {item}")
         else:
-            st.write("No favorites yet.")
+            st.write("No favorite items yet.")
 
     elif menu_option == "Feedback":
         st.write("Submit Feedback")
         feedback_text = st.text_area("Your Feedback")
         if st.button("Submit Feedback"):
             if st.session_state.authenticated:
-                username = username  # Use the logged-in username
+                username = st.session_state.username  # Use the logged-in username
                 conn = sqlite3.connect('feedback.db')
                 c = conn.cursor()
                 c.execute('''CREATE TABLE IF NOT EXISTS feedback
@@ -281,3 +286,4 @@ if st.session_state.authenticated:
         st.session_state.order_placed = False
         st.session_state.favorites = []
         st.session_state.admin = False
+        st.session_state.username = None
