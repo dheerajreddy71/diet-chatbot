@@ -9,9 +9,11 @@ def init_db():
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users
-                 (username TEXT PRIMARY KEY, password TEXT)''')
+                 (username TEXT PRIMARY KEY, password TEXT, role TEXT)''')
     c.execute('''CREATE TABLE IF NOT EXISTS feedback
                  (username TEXT, feedback_text TEXT, rating INTEGER)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS orders
+                 (username TEXT, order_details TEXT)''')
     conn.commit()
     conn.close()
 
@@ -47,6 +49,8 @@ if "cart" not in st.session_state:
     st.session_state.cart = []
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
+if "admin" not in st.session_state:
+    st.session_state.admin = False
 if "page" not in st.session_state:
     st.session_state.page = "Login"
 if "favorites" not in st.session_state:
@@ -70,6 +74,7 @@ if st.session_state.page == "Login":
         if user:
             st.session_state.authenticated = True
             st.session_state.username = username  # Store username in session state
+            st.session_state.admin = user[2] == "admin"  # Set admin status based on role
             st.session_state.page = "Ordering"
         else:
             st.error("Invalid username or password")
@@ -82,12 +87,13 @@ elif st.session_state.page == "Register":
     st.header("Register")
     new_username = st.text_input("New Username")
     new_password = st.text_input("New Password", type="password")
-    
+    is_admin = st.checkbox("Admin")
+
     if st.button("Register"):
         conn = sqlite3.connect('users.db')
         c = conn.cursor()
         try:
-            c.execute('INSERT INTO users (username, password) VALUES (?, ?)', (new_username, hash_password(new_password)))
+            c.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', (new_username, hash_password(new_password), "admin" if is_admin else "user"))
             conn.commit()
             st.success("Registration successful! Please log in.")
             st.session_state.page = "Login"
@@ -180,6 +186,12 @@ elif st.session_state.page == "Ordering":
             if st.button("Place Order"):
                 st.session_state.order_placed = True
                 st.session_state.cart = []  # Clear cart after placing order
+                conn = sqlite3.connect('users.db')
+                c = conn.cursor()
+                order_details = ', '.join(st.session_state.cart)
+                c.execute('INSERT INTO orders (username, order_details) VALUES (?, ?)', (st.session_state.username, order_details))
+                conn.commit()
+                conn.close()
                 st.success("Your order has been placed!")
         else:
             st.write("Your cart is empty.")
@@ -191,21 +203,21 @@ elif st.session_state.page == "Ordering":
             st.write("No order placed yet.")
 
     elif menu_option == "Favorites":
-        st.write("Your Favorite Items:")
+        st.write("Your Favorites:")
         if st.session_state.favorites:
             for item in st.session_state.favorites:
                 st.write(f"- {item}")
         else:
-            st.write("No favorite items yet.")
+            st.write("No favorites yet.")
 
     elif menu_option == "Feedback":
-        st.header("Provide Your Feedback")
-        feedback_text = st.text_area("Your Feedback")
-        rating = st.slider("Rate Your Experience", 1, 5)
-        
+        st.header("Submit Feedback")
+        feedback_text = st.text_area("Enter your feedback")
+        rating = st.slider("Rating", 1, 5)
+
         if st.button("Submit Feedback"):
             try:
-                if st.session_state.username:
+                if st.session_state.authenticated:
                     conn = sqlite3.connect('users.db')
                     c = conn.cursor()
                     c.execute('INSERT INTO feedback (username, feedback_text, rating) VALUES (?, ?, ?)',
@@ -219,23 +231,21 @@ elif st.session_state.page == "Ordering":
                 st.error(f"Error: {e}")
 
     elif menu_option == "Admin - View Feedback":
-        st.header("Admin - View Feedback")
-        conn = sqlite3.connect('users.db')
-        c = conn.cursor()
-        c.execute('SELECT * FROM feedback')
-        feedback = c.fetchall()
-        conn.close()
-        
-        if feedback:
-            for fb in feedback:
-                st.write(f"Username: {fb[0]}")
-                st.write(f"Feedback: {fb[1]}")
-                st.write(f"Rating: {fb[2]}")
-                st.write("---")
+        if not st.session_state.admin:
+            st.error("Access denied. Admins only.")
         else:
-            st.write("No feedback available yet.")
+            st.header("Admin - View Feedback")
+            conn = sqlite3.connect('users.db')
+            c = conn.cursor()
+            c.execute('SELECT * FROM feedback')
+            feedback = c.fetchall()
+            conn.close()
 
-# Translation for the displayed content
-if language != "English":
-    st.write("Translated Content:")
-    st.write(translate_text(st.session_state.page, language))
+            if feedback:
+                for fb in feedback:
+                    st.write(f"Username: {fb[0]}")
+                    st.write(f"Feedback: {fb[1]}")
+                    st.write(f"Rating: {fb[2]}")
+                    st.write("---")
+            else:
+                st.write("No feedback available yet.")
