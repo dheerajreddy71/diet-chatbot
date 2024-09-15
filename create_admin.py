@@ -214,69 +214,15 @@ elif st.session_state.page == "Ordering":
             st.write("No favorites yet.")
 
     elif menu_option == "Feedback":
-        feedback_text = st.text_area("Your Feedback")
+        feedback = st.text_area("Leave your feedback here:")
         if st.button("Submit Feedback"):
-            if st.session_state.authenticated:
-                username = username  # Use the logged-in username
-                conn = sqlite3.connect('feedback.db')
-                c = conn.cursor()
-                c.execute('''CREATE TABLE IF NOT EXISTS feedback
-                             (username TEXT, feedback TEXT)''')
-                c.execute('INSERT INTO feedback (username, feedback) VALUES (?, ?)',
-                          (username, feedback_text))
-                conn.commit()
-                conn.close()
-                st.success("Thank you for your feedback!")
-            else:
-                st.error("You need to log in to submit feedback.")
+            st.success("Thank you for your feedback!")
 
 elif st.session_state.page == "AdminDashboard":
     if not st.session_state.authenticated or not st.session_state.admin:
         st.session_state.page = "Login"
     
     st.header("Admin Dashboard")
-    
-    # Display feedback from users
-    conn = sqlite3.connect('feedback.db')
-    c = conn.cursor()
-    c.execute('SELECT username, feedback FROM feedback')
-    feedback = c.fetchall()
-    conn.close()
-    
-    st.subheader("User Feedback")
-    if feedback:
-        for user_feedback in feedback:
-            st.write(f"User: {user_feedback[0]}")
-            st.write(f"Feedback: {user_feedback[1]}")
-            st.write("---")
-    else:
-        st.write("No feedback yet.")
-    
-    # Display all users
-    conn = sqlite3.connect('users.db')
-    c = conn.cursor()
-    c.execute('SELECT username FROM users WHERE role = ?', ('user',))
-    users = c.fetchall()
-    conn.close()
-    
-    st.subheader("Registered Users")
-    if users:
-        for user in users:
-            st.write(f"User: {user[0]}")
-            st.write("---")
-    else:
-        st.write("No registered users.")
+    st.write("Welcome to the Admin Dashboard.")
+    st.write("You can manage orders, view user activities, and perform other admin tasks here.")
 
-    # Display user orders
-    st.subheader("User Orders")
-    # Simulated orders, replace with actual order data
-    st.write("This section will display order history for users.")
-
-if st.session_state.authenticated:
-    if st.button("Logout"):
-        st.session_state.authenticated = False
-        st.session_state.page = "Login"
-        st.session_state.cart = []
-        st.session_state.order_placed = False
-        st.session_state.favorites = []
-        st.session_state.admin = False
