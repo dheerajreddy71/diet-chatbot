@@ -1,11 +1,14 @@
 import streamlit as st
 import logging
-import random
 import time
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Hardcoded username and password for demonstration
+USERNAME = "user"
+PASSWORD = "password"
 
 menu_items = {
     "Salads": {
@@ -55,53 +58,74 @@ def process_order():
 # Streamlit App
 st.title("Restaurant Menu & Ordering System")
 
-# Initialize session state for cart and order tracking
+# Initialize session state for login, cart, and order tracking
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
 if "cart" not in st.session_state:
     st.session_state.cart = []
 
 if "order_placed" not in st.session_state:
     st.session_state.order_placed = False
 
-# Sidebar menu to choose between options
-menu_option = st.sidebar.selectbox(
-    "Choose an option",
-    ["View Menu", "View Cart", "Track Order"]
-)
-
-# Allow user to set dietary restrictions
-selected_restriction = st.sidebar.selectbox("Select Dietary Restriction", dietary_restrictions)
-
-# View Menu
-if menu_option == "View Menu":
-    category = st.selectbox("Select a Category", list(menu_items.keys()))
+# Login functionality
+if not st.session_state.logged_in:
+    st.subheader("Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
     
-    if category:
-        st.write(f"Here are the items in the {category} category:")
+    if st.button("Login"):
+        if username == USERNAME and password == PASSWORD:
+            st.session_state.logged_in = True
+            st.success("Logged in successfully!")
+        else:
+            st.error("Invalid username or password")
+else:
+    # Sidebar menu to choose between options
+    menu_option = st.sidebar.selectbox(
+        "Choose an option",
+        ["View Menu", "View Cart", "Track Order"]
+    )
 
-        # Display only items that match the selected dietary restriction
-        for item, tags in menu_items[category].items():
-            if selected_restriction == "None" or selected_restriction.lower() in tags:
-                st.write(f"- {item} ({', '.join(tags)})")
-                if st.button(f"Add {item} to Cart", key=item):
-                    st.session_state.cart.append(item)
-                    st.success(f"{item} added to cart!")
+    # Allow user to set dietary restrictions
+    selected_restriction = st.sidebar.selectbox("Select Dietary Restriction", dietary_restrictions)
 
-# View Cart
-elif menu_option == "View Cart":
-    st.write("Your Cart:")
-    if st.session_state.cart:
-        for item in st.session_state.cart:
-            st.write(f"- {item}")
-        if st.button("Place Order"):
-            st.session_state.order_placed = True
-            st.session_state.cart = []  # Clear cart after placing order
-            st.success("Your order has been placed!")
-    else:
-        st.write("Your cart is empty.")
+    # View Menu
+    if menu_option == "View Menu":
+        category = st.selectbox("Select a Category", list(menu_items.keys()))
+        
+        if category:
+            st.write(f"Here are the items in the {category} category:")
 
-# Track Order
-elif menu_option == "Track Order":
-    if st.session_state.order_placed:
-        process_order()
-    else:
-        st.write("No order placed yet.")
+            # Display only items that match the selected dietary restriction
+            for item, tags in menu_items[category].items():
+                if selected_restriction == "None" or selected_restriction.lower() in tags:
+                    st.write(f"- {item} ({', '.join(tags)})")
+                    if st.button(f"Add {item} to Cart", key=item):
+                        st.session_state.cart.append(item)
+                        st.success(f"{item} added to cart!")
+
+    # View Cart
+    elif menu_option == "View Cart":
+        st.write("Your Cart:")
+        if st.session_state.cart:
+            for item in st.session_state.cart:
+                st.write(f"- {item}")
+            if st.button("Place Order"):
+                st.session_state.order_placed = True
+                st.session_state.cart = []  # Clear cart after placing order
+                st.success("Your order has been placed!")
+        else:
+            st.write("Your cart is empty.")
+
+    # Track Order
+    elif menu_option == "Track Order":
+        if st.session_state.order_placed:
+            process_order()
+        else:
+            st.write("No order placed yet.")
+    
+    # Logout functionality
+    if st.button("Logout"):
+        st.session_state.logged_in = False
+        st.success("Logged out successfully!")
