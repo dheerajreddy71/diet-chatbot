@@ -47,7 +47,7 @@ if st.session_state.page == "Login":
         if user:
             st.session_state.authenticated = True
             st.session_state.page = "Ordering"
-            st.success("Login successful! Redirecting to the ordering page...")
+            st.experimental_rerun()  # Redirect by re-running the app
         else:
             st.error("Invalid username or password")
 
