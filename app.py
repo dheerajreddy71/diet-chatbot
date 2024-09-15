@@ -1,9 +1,12 @@
 import streamlit as st
 import logging
+import random
+import time
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 menu_items = {
     "Salads": {
         "Caesar Salad": ["vegetarian", "gluten-free", "low-sugar", "low-sodium"],
@@ -114,25 +117,66 @@ dietary_preferences = {
         # Add 500 more high-protein items here
     ],
 }
+# Order tracking simulation
+order_status = [
+    "Order Received", "Preparing Your Order", "Cooking In Progress", "Order Packed", "Out for Delivery", "Delivered"
+]
+
+# Define a function to simulate order processing
+def process_order():
+    st.write("Processing your order...")
+    status = random.choice(order_status)
+    for i in range(len(order_status)):
+        st.write(f"Status: {order_status[i]}")
+        time.sleep(2)
+        if i == len(order_status) - 1:
+            st.success("Your order has been delivered!")
+        else:
+            st.info(f"Next step: {order_status[i+1]}")
+
 # Streamlit App
+st.title("Restaurant Menu & Ordering System")
 
-st.title("Restaurant Menu & Dietary Preferences")
+# Initialize session state for cart and order tracking
+if "cart" not in st.session_state:
+    st.session_state.cart = []
 
+if "order_placed" not in st.session_state:
+    st.session_state.order_placed = False
+
+# Sidebar menu to choose between options
 menu_option = st.sidebar.selectbox(
     "Choose an option",
-    ["View Menu", "View Dietary Preferences"]
+    ["View Menu", "View Cart", "Track Order"]
 )
 
+# View Menu
 if menu_option == "View Menu":
     category = st.selectbox("Select a Category", list(menu_items.keys()))
     if category:
         st.write(f"Here are the items in the {category} category:")
         for item in menu_items[category]:
             st.write(f"- {item} ({', '.join(menu_items[category][item])})")
+            if st.button(f"Add {item} to Cart", key=item):
+                st.session_state.cart.append(item)
+                st.success(f"{item} added to cart!")
 
-elif menu_option == "View Dietary Preferences":
-    preference = st.selectbox("Select a Dietary Preference", list(dietary_preferences.keys()))
-    if preference:
-        st.write(f"Here are the items that match the '{preference}' preference:")
-        for item in dietary_preferences[preference]:
+# View Cart
+elif menu_option == "View Cart":
+    st.write("Your Cart:")
+    if st.session_state.cart:
+        for item in st.session_state.cart:
             st.write(f"- {item}")
+        if st.button("Place Order"):
+            st.session_state.order_placed = True
+            st.session_state.cart = []  # Clear cart after placing order
+            st.success("Your order has been placed!")
+    else:
+        st.write("Your cart is empty.")
+
+# Track Order
+elif menu_option == "Track Order":
+    if st.session_state.order_placed:
+        process_order()
+    else:
+        st.write("No order placed yet.")
