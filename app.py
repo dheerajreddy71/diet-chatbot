@@ -22,6 +22,7 @@ def setup_sample_admin():
         conn.commit()
     conn.close()
 
+
 # Hashing function for passwords
 def hash_password(password):
     return sha256(password.encode()).hexdigest()
