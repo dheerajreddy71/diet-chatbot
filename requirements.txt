@@ -1,0 +1,2 @@
+streamlit==1.21.0
+googletrans==4.0.0-rc1
