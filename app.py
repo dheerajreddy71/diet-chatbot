@@ -22,10 +22,16 @@ credentials = {
     "usernames": list(users.keys()),
     "passwords": list(users.values()),
     "cookie_name": "some_cookie",
-    "signature_key": "some_key",
+    "signature_key": "some_signature_key",
     "cookie_expiry_days": 1
 }
-authenticator = stauth.Authenticate(**credentials)
+authenticator = stauth.Authenticate(
+    usernames=credentials["usernames"],
+    passwords=credentials["passwords"],
+    cookie_name=credentials["cookie_name"],
+    signature_key=credentials["signature_key"],
+    cookie_expiry_days=credentials["cookie_expiry_days"]
+)
 name, authentication_status, username = authenticator.login("Login", "sidebar")
 
 # Translator
