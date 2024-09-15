@@ -38,8 +38,19 @@ def get_estimated_delivery_time():
 def toggle_theme():
     if "theme" not in st.session_state:
         st.session_state.theme = "light"
-    st.session_state.theme = "dark" if st.session_state.theme == "light" else "light"
-    st.experimental_rerun()
+    else:
+        st.session_state.theme = "dark" if st.session_state.theme == "light" else "light"
+
+# Sidebar option for Dark/Light mode toggle
+if st.sidebar.button("Toggle Dark/Light Mode"):
+    toggle_theme()
+
+# Apply the theme to the app
+if "theme" in st.session_state and st.session_state.theme == "dark":
+    st.write('<style>body { background-color: #111; color: white; }</style>', unsafe_allow_html=True)
+else:
+    st.write('<style>body { background-color: white; color: black; }</style>', unsafe_allow_html=True)
+
 
 # Multi-language support
 def translate_text(text, target_language):
