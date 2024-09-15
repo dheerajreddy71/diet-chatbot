@@ -201,25 +201,34 @@ elif st.session_state.page == "Ordering":
         rating = st.slider("Rate Your Experience", 1, 5)
         
         if st.button("Submit Feedback"):
-            conn = sqlite3.connect('users.db')
-            c = conn.cursor()
-            c.execute('INSERT INTO feedback (username, feedback_text, rating) VALUES (?, ?, ?)',
-                      (username, feedback_text, rating))
-            conn.commit()
-            conn.close()
-            st.success("Thank you for your feedback!")
+            try:
+                if 'username' in st.session_state and st.session_state.username:
+                    conn = sqlite3.connect('users.db')
+                    c = conn.cursor()
+                    c.execute('INSERT INTO feedback (username, feedback_text, rating) VALUES (?, ?, ?)',
+                              (st.session_state.username, feedback_text, rating))
+                    conn.commit()
+                    conn.close()
+                    st.success("Thank you for your feedback!")
+                else:
+                    st.error("You need to log in to submit feedback.")
+            except Exception as e:
+                st.error(f"Error: {e}")
 
     elif menu_option == "Admin - View Feedback":
-        st.header("Admin: View Feedback")
+        st.header("Admin - View Feedback")
         conn = sqlite3.connect('users.db')
         c = conn.cursor()
         c.execute('SELECT * FROM feedback')
-        feedback_entries = c.fetchall()
+        feedback = c.fetchall()
         conn.close()
-
-        if feedback_entries:
-            for feedback in feedback_entries:
-                st.write(f"User: {feedback[0]}, Feedback: {feedback[1]}, Rating: {feedback[2]}")
+        
+        if feedback:
+            for fb in feedback:
+                st.write(f"Username: {fb[0]}")
+                st.write(f"Feedback: {fb[1]}")
+                st.write(f"Rating: {fb[2]}")
+                st.write("---")
         else:
             st.write("No feedback available yet.")
 
