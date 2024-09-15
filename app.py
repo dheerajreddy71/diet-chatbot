@@ -173,4 +173,3 @@ elif menu_option == "Track Order":
         st.write("No order placed yet.")
 
 # Add more features as needed based on the outlined functionalities.
-
