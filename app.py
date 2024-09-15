@@ -1,6 +1,7 @@
 import streamlit as st
 import sqlite3
 from hashlib import sha256
+import time
 
 # Initialize the SQLite database
 def init_db():
@@ -52,6 +53,10 @@ if st.session_state.page == "Login":
             st.error("Invalid username or password")
 
 elif st.session_state.page == "Ordering":
+    if not st.session_state.authenticated:
+        st.session_state.page = "Login"
+        st.experimental_rerun()
+        
     st.header("Ordering Page")
 
     # Sidebar menu to choose between options
@@ -136,3 +141,19 @@ elif st.session_state.page == "Ordering":
             process_order()
         else:
             st.write("No order placed yet.")
+
+elif st.session_state.page == "Register":
+    st.header("Register")
+    new_username = st.text_input("New Username")
+    new_password = st.text_input("New Password", type="password")
+    if st.button("Register"):
+        conn = sqlite3.connect('users.db')
+        c = conn.cursor()
+        try:
+            c.execute('INSERT INTO users (username, password) VALUES (?, ?)', (new_username, hash_password(new_password)))
+            conn.commit()
+            st.success("Registration successful! Please log in.")
+            st.session_state.page = "Login"
+        except sqlite3.IntegrityError:
+            st.error("Username already exists.")
+        conn.close()
