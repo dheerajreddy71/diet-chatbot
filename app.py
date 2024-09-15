@@ -1,139 +1,138 @@
 import streamlit as st
-import streamlit_authenticator as stauth
-from googletrans import Translator
-from datetime import datetime
-import random
+import logging
 
-# Initial data setup
-menu_items = [
-    {'name': 'Pizza Margherita', 'price': 8, 'ingredients': 'Tomato, Mozzarella, Basil', 'allergens': 'Dairy'},
-    {'name': 'Vegan Salad', 'price': 5, 'ingredients': 'Lettuce, Tomato, Cucumber', 'allergens': None},
-    {'name': 'Spaghetti Bolognese', 'price': 10, 'ingredients': 'Beef, Tomato, Pasta', 'allergens': 'Gluten'},
-    {'name': 'Chicken Burger', 'price': 9, 'ingredients': 'Chicken, Lettuce, Tomato', 'allergens': 'Gluten, Dairy'}
-]
-
-discounts = {"FREEDISH": 10}  # Promo code for 10% off
-
-# Mock user credentials
-users = {"user1": "password", "user2": "password123"}
-
-# User Authentication
-credentials = {
-    "usernames": list(users.keys()),
-    "passwords": list(users.values()),
-    "cookie_name": "some_cookie",
-    "signature_key": "some_signature_key",
-    "cookie_expiry_days": 1
+# Enable logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
+menu_items = {
+    "Salads": {
+        "Caesar Salad": ["vegetarian", "gluten-free", "low-sugar", "low-sodium"],
+        "Quinoa Salad": ["vegan", "gluten-free", "dairy-free", "low-sugar", "high-protein"],
+        "Greek Salad": ["vegetarian", "gluten-free", "low-sodium", "low-sugar"],
+        "Kale & Avocado Salad": ["vegan", "gluten-free", "dairy-free", "low-sodium", "high-fiber", "low-sugar"],
+        "Caprese Salad": ["vegetarian", "gluten-free", "low-sodium", "low-sugar"],
+        # Add 100 more salad items here with different tags
+    },
+    "Main Courses": {
+        "Grilled Chicken": ["high-protein", "gluten-free", "low-sodium", "low-sugar"],
+        "Pasta Primavera": ["vegetarian", "contains gluten", "low-sugar"],
+        "Vegetable Stir-fry": ["vegan", "gluten-free", "low-sodium"],
+        "Beef Burger (No Bun)": ["high-protein", "gluten-free", "low-sugar"],
+        "Lentil Soup": ["vegan", "gluten-free", "dairy-free", "high-fiber", "low-sugar"],
+        "Grilled Salmon": ["high-protein", "gluten-free", "low-sodium", "rich in Omega-3"],
+        "Vegan Buddha Bowl": ["vegan", "gluten-free", "dairy-free", "low-sodium"],
+        "Margherita Pizza": ["vegetarian", "contains gluten", "contains dairy"],
+        "Chickpea Curry": ["vegan", "gluten-free", "low-sodium", "high-protein"],
+        "Eggplant Parmesan": ["vegetarian", "contains gluten", "low-sodium", "low-sugar"],
+        "Steamed Cod with Vegetables": ["high-protein", "gluten-free", "low-sodium", "low-sugar"],
+        # Add 100 more main course items here with different tags
+    },
+    "Drinks": {
+        "Fruit Smoothie": ["vegan", "dairy-free", "low-sugar", "gluten-free"],
+        "Iced Tea (unsweetened)": ["gluten-free", "dairy-free", "low-sugar", "low-sodium"],
+        "Mango Lassi (No Sugar)": ["vegetarian", "contains dairy", "gluten-free", "low-sugar"],
+        "Almond Milk Latte": ["vegan", "gluten-free", "dairy-free", "low-sugar"],
+        "Green Tea": ["vegan", "gluten-free", "dairy-free", "low-sugar", "low-sodium"],
+        "Coconut Water": ["vegan", "gluten-free", "dairy-free", "low-sodium", "low-sugar"],
+        "Carrot Juice": ["vegan", "gluten-free", "low-sugar", "high in Vitamin A"],
+        "Beetroot Juice": ["vegan", "gluten-free", "low-sodium", "rich in iron"],
+        # Add 100 more drink items here with different tags
+    },
+    "Desserts": {
+        "Sugar-Free Chocolate Cake": ["vegetarian", "contains gluten", "low-sugar", "contains dairy"],
+        "Fruit Salad": ["vegan", "gluten-free", "dairy-free", "low-sodium", "low-sugar"],
+        "Vegan Brownie": ["vegan", "contains gluten", "low-sodium"],
+        "Chia Pudding": ["vegan", "gluten-free", "dairy-free", "low-sugar"],
+        "Baked Apples": ["vegan", "gluten-free", "low-sodium", "low-sugar"],
+        "Frozen Yogurt (No Sugar)": ["vegetarian", "gluten-free", "contains dairy", "low-sugar"],
+        "Oatmeal Cookies (No Sugar)": ["vegan", "contains gluten", "low-sugar", "high-fiber"],
+        # Add 100 more dessert items here with different tags
+    },
+    "Appetizers": {
+        "Garlic Bread": ["vegetarian", "contains gluten"],
+        "Bruschetta": ["vegetarian", "contains gluten"],
+        "Falafel": ["vegan", "gluten-free", "dairy-free", "low-sodium", "high-protein"],
+        "Spring Rolls": ["vegan", "contains gluten", "low-sodium"],
+        "Stuffed Mushrooms": ["vegetarian", "gluten-free", "low-sodium"],
+        "Guacamole with Chips": ["vegan", "gluten-free", "dairy-free", "low-sodium"],
+        "Roasted Chickpeas": ["vegan", "gluten-free", "low-sodium", "low-sugar", "high-protein"],
+        "Baked Zucchini Fries": ["vegan", "gluten-free", "low-sodium"],
+        # Add 100 more appetizer items here with different tags
+    }
 }
-authenticator = stauth.Authenticate(
-    usernames=credentials["usernames"],
-    passwords=credentials["passwords"],
-    cookie_name=credentials["cookie_name"],
-    signature_key=credentials["signature_key"],
-    cookie_expiry_days=credentials["cookie_expiry_days"]
+
+# Define dietary preferences, including specific health condition restrictions
+dietary_preferences = {
+    "vegan": [
+        "Quinoa Salad", "Kale & Avocado Salad", "Greek Salad", "Vegetable Stir-fry",
+        "Lentil Soup", "Vegan Buddha Bowl", "Chickpea Curry", "Falafel", "Spring Rolls",
+        "Roasted Chickpeas", "Baked Zucchini Fries", "Fruit Smoothie", "Almond Milk Latte",
+        "Green Tea", "Coconut Water", "Carrot Juice", "Beetroot Juice", "Fruit Salad",
+        "Vegan Brownie", "Chia Pudding", "Baked Apples", "Oatmeal Cookies",
+        # Add 500 more vegan items here
+    ],
+    "vegetarian": [
+        "Caesar Salad", "Greek Salad", "Caprese Salad", "Pasta Primavera", "Margherita Pizza",
+        "Eggplant Parmesan", "Garlic Bread", "Bruschetta", "Stuffed Mushrooms", "Mango Lassi (No Sugar)",
+        "Frozen Yogurt (No Sugar)", "Sugar-Free Chocolate Cake",
+        # Add 500 more vegetarian items here
+    ],
+    "gluten-free": [
+        "Caesar Salad", "Quinoa Salad", "Greek Salad", "Kale & Avocado Salad", "Chicken & Spinach Salad",
+        "Grilled Chicken", "Vegetable Stir-fry", "Lentil Soup", "Grilled Salmon", "Vegan Buddha Bowl",
+        "Chickpea Curry", "Steamed Cod with Vegetables", "Fruit Smoothie", "Iced Tea", "Mango Lassi",
+        "Almond Milk Latte", "Green Tea", "Coconut Water", "Carrot Juice", "Beetroot Juice", "Fruit Salad",
+        "Chia Pudding", "Baked Apples", "Frozen Yogurt", "Roasted Chickpeas", "Baked Zucchini Fries",
+        # Add 500 more gluten-free items here
+    ],
+    "dairy-free": [
+        "Quinoa Salad", "Kale & Avocado Salad", "Vegetable Stir-fry", "Lentil Soup", "Vegan Buddha Bowl",
+        "Chickpea Curry", "Steamed Cod with Vegetables", "Fruit Smoothie", "Almond Milk Latte",
+        "Green Tea", "Coconut Water", "Carrot Juice", "Beetroot Juice", "Fruit Salad", "Chia Pudding",
+        "Baked Apples", "Oatmeal Cookies", "Falafel", "Roasted Chickpeas", "Baked Zucchini Fries",
+        # Add 500 more dairy-free items here
+    ],
+    "low-sugar": [
+        "Quinoa Salad", "Greek Salad", "Kale & Avocado Salad", "Chicken & Spinach Salad", "Grilled Chicken",
+        "Lentil Soup", "Beef Burger (No Bun)", "Grilled Salmon", "Fruit Smoothie", "Iced Tea (unsweetened)",
+        "Almond Milk Latte", "Green Tea", "Coconut Water", "Carrot Juice", "Sugar-Free Chocolate Cake",
+        "Fruit Salad", "Chia Pudding", "Frozen Yogurt (No Sugar)", "Baked Apples", "Oatmeal Cookies",
+        # Add 500 more low-sugar items here
+    ],
+    "low-sodium": [
+        "Caesar Salad", "Greek Salad", "Kale & Avocado Salad", "Grilled Chicken", "Vegetable Stir-fry",
+        "Lentil Soup", "Grilled Salmon", "Vegan Buddha Bowl", "Chickpea Curry", "Steamed Cod with Vegetables",
+        "Fruit Smoothie", "Iced Tea (unsweetened)", "Green Tea", "Coconut Water", "Carrot Juice",
+        "Beetroot Juice", "Fruit Salad", "Chia Pudding", "Baked Apples", "Roasted Chickpeas",
+        "Baked Zucchini Fries", "Stuffed Mushrooms",
+        # Add 500 more low-sodium items here
+    ],
+    "high-protein": [
+        "Grilled Chicken", "Chickpea Curry", "Beef Burger (No Bun)", "Lentil Soup", "Grilled Salmon",
+        "Vegan Buddha Bowl", "Roasted Chickpeas", "Oatmeal Cookies", "Almond Milk Latte", "Carrot Juice",
+        "Beetroot Juice", "Fruit Salad", "Chia Pudding",
+        # Add 500 more high-protein items here
+    ],
+}
+# Streamlit App
+
+st.title("Restaurant Menu & Dietary Preferences")
+
+menu_option = st.sidebar.selectbox(
+    "Choose an option",
+    ["View Menu", "View Dietary Preferences"]
 )
-name, authentication_status, username = authenticator.login("Login", "sidebar")
 
-# Translator
-translator = Translator()
+if menu_option == "View Menu":
+    category = st.selectbox("Select a Category", list(menu_items.keys()))
+    if category:
+        st.write(f"Here are the items in the {category} category:")
+        for item in menu_items[category]:
+            st.write(f"- {item} ({', '.join(menu_items[category][item])})")
 
-# Function to calculate order total
-def calculate_total(order, promo_code=None):
-    total = sum(item['price'] for item in order)
-    if promo_code and promo_code in discounts:
-        total = total * (1 - discounts[promo_code] / 100)
-    return total
-
-# Function to filter menu based on search query
-def search_menu(query):
-    return [item for item in menu_items if query.lower() in item['name'].lower()]
-
-# Main Page Content
-if authentication_status:
-    st.title(f"Welcome, {name}")
-    
-    # Search Functionality
-    search_query = st.text_input("Search for dishes:")
-    if search_query:
-        menu = search_menu(search_query)
-    else:
-        menu = menu_items
-
-    # Display Menu
-    st.subheader("Menu")
-    order = []
-    for item in menu:
-        st.write(f"{item['name']} - ${item['price']}")
-        st.write(f"Ingredients: {item['ingredients']}")
-        if item['allergens']:
-            st.warning(f"Allergens: {item['allergens']}")
-        quantity = st.number_input(f"Quantity of {item['name']}", min_value=0, max_value=10, key=item['name'])
-        if quantity > 0:
-            order.extend([item] * quantity)
-
-    # Customizations (e.g., sauces, sides)
-    if order:
-        st.subheader("Order Customization")
-        for item in order:
-            st.write(f"Customize {item['name']}")
-            if item['name'] == 'Pizza Margherita':
-                extras = st.multiselect("Choose extras for Pizza:", ["Extra Cheese", "Olives", "Pepperoni"], key=f"{item['name']}_extras")
-                st.write(f"You selected: {extras}")
-
-    # Apply Promo Code
-    promo_code = st.text_input("Promo Code:")
-    
-    # Order Summary
-    if order:
-        st.subheader("Order Summary")
-        total_price = calculate_total(order, promo_code)
-        for item in order:
-            st.write(f"{item['name']} - ${item['price']}")
-        if promo_code and promo_code in discounts:
-            st.success(f"Promo code applied! {discounts[promo_code]}% off")
-        st.write(f"Total: ${total_price}")
-
-        # Confirm and Place Order
-        if st.button("Place Order"):
-            st.success("Order placed successfully!")
-            order_time = datetime.now().strftime("%H:%M:%S")
-            delivery_time = f"{random.randint(20, 40)} minutes"
-            st.write(f"Order Time: {order_time}")
-            st.write(f"Estimated Delivery Time: {delivery_time}")
-
-            # Feedback
-            st.subheader("Feedback")
-            rating = st.slider("Rate your experience:", 1, 5)
-            feedback = st.text_area("Leave feedback:")
-            if st.button("Submit Feedback"):
-                st.write(f"Thank you for your feedback! Rating: {rating}/5")
-    
-    # Dietary Restriction Filtering
-    st.sidebar.subheader("Dietary Preferences")
-    gluten_free = st.sidebar.checkbox("Gluten Free")
-    dairy_free = st.sidebar.checkbox("Dairy Free")
-    vegan = st.sidebar.checkbox("Vegan")
-    
-    # Filter based on preferences
-    if gluten_free or dairy_free or vegan:
-        filtered_menu = [item for item in menu_items if (gluten_free and 'Gluten' not in item['allergens']) or (dairy_free and 'Dairy' not in item['allergens']) or (vegan and 'Beef' not in item['ingredients'])]
-        if filtered_menu:
-            st.sidebar.write("Filtered Menu:")
-            for item in filtered_menu:
-                st.sidebar.write(item['name'])
-        else:
-            st.sidebar.write("No items match your dietary preferences.")
-    
-    # Multi-language Support
-    lang_option = st.sidebar.selectbox("Choose language", ['English', 'French', 'Spanish'])
-    if lang_option != 'English':
-        translation = translator.translate("Welcome to the restaurant menu app!", dest=lang_option[:2].lower())
-        st.sidebar.write(translation.text)
-
-    # Logout Button
-    authenticator.logout("Logout", "sidebar")
-
-elif authentication_status == False:
-    st.error("Invalid username or password")
-else:
-    st.warning("Please log in to access the menu")
+elif menu_option == "View Dietary Preferences":
+    preference = st.selectbox("Select a Dietary Preference", list(dietary_preferences.keys()))
+    if preference:
+        st.write(f"Here are the items that match the '{preference}' preference:")
+        for item in dietary_preferences[preference]:
+            st.write(f"- {item}")
