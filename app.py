@@ -1,29 +1,15 @@
 import streamlit as st
 import logging
 import time
+from transformers import pipeline
 from streamlit_authenticator import Authenticate
+from googletrans import Translator
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Authentication configuration
-usernames = ['user1', 'user2']
-passwords = ['password1', 'password2']
-names = ['User One', 'User Two']
-cookie_name = 'restaurant_app'
-cookie_expiry_days = 30
-
-# Initialize authenticator
-authenticator = Authenticate(
-    usernames=usernames,
-    passwords=passwords,
-    names=names,
-    cookie_name=cookie_name,
-    cookie_expiry_days=cookie_expiry_days
-)
-
-# Menu items
+# Example menu items
 menu_items = {
     "Salads": {
         "Caesar Salad": ["vegetarian", "gluten-free", "low-sugar", "low-sodium"],
@@ -58,7 +44,26 @@ order_status = [
     "Order Received", "Preparing Your Order", "Cooking In Progress", "Order Packed", "Out for Delivery", "Delivered"
 ]
 
-# Define a function to simulate order processing
+# Initialize Streamlit Authenticator
+authenticator = Authenticate(
+    credentials={
+        "usernames": {
+            "testuser": {"password": "testpassword"}
+        }
+    },
+    cookie_name="session",
+    cookie_expiry_days=1,
+    login_url="http://localhost:8501/login"
+)
+
+# Initialize NLP chatbot
+chatbot = pipeline('conversational', model='facebook/blenderbot-400M-distill')
+
+def chat_with_bot(user_input):
+    response = chatbot(user_input)
+    return response[0]['generated_text']
+
+# Define functions for various features
 def process_order():
     st.write("Processing your order...")
     for i in range(len(order_status)):
@@ -69,20 +74,20 @@ def process_order():
         else:
             st.info(f"Next step: {order_status[i + 1]}")
 
+def search_menu(query):
+    results = []
+    for category, items in menu_items.items():
+        for item, tags in items.items():
+            if query.lower() in item.lower():
+                results.append((category, item, tags))
+    return results
+
+def translate_text(text, lang="en"):
+    translator = Translator()
+    return translator.translate(text, dest=lang).text
+
 # Streamlit App
 st.title("Restaurant Menu & Ordering System")
-
-# Authenticate user
-if not authenticator.is_authenticated:
-    username, password = authenticator.login()
-    if username and password:
-        st.session_state.user = username
-    else:
-        st.stop()
-else:
-    st.session_state.user = authenticator.get_username()
-
-st.write(f"Welcome, {st.session_state.user}!")
 
 # Initialize session state for cart and order tracking
 if "cart" not in st.session_state:
@@ -91,17 +96,46 @@ if "cart" not in st.session_state:
 if "order_placed" not in st.session_state:
     st.session_state.order_placed = False
 
-# Sidebar menu to choose between options
+if "user" not in st.session_state:
+    st.session_state.user = None
+
+# Sidebar menu
 menu_option = st.sidebar.selectbox(
     "Choose an option",
-    ["View Menu", "View Cart", "Track Order"]
+    ["Login", "View Menu", "View Cart", "Track Order", "Chat with Bot", "Search Menu"]
 )
+
+# Handle authentication
+if menu_option == "Login":
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        if authenticator.authenticate(username, password):
+            st.session_state.user = username
+            st.success("Logged in successfully!")
+        else:
+            st.error("Invalid credentials")
+
+# Handle Chatbot
+elif menu_option == "Chat with Bot":
+    user_input = st.text_input("Ask me anything about our menu:")
+    if user_input:
+        bot_response = chat_with_bot(user_input)
+        st.write(f"Bot: {bot_response}")
+
+# Handle Menu Search
+elif menu_option == "Search Menu":
+    query = st.text_input("Enter a dish name or ingredient:")
+    if query:
+        results = search_menu(query)
+        if results:
+            for result in results:
+                st.write(f"Category: {result[0]}, Dish: {result[1]}, Tags: {', '.join(result[2])}")
+        else:
+            st.write("No results found.")
 
 # Allow user to set dietary restrictions
 selected_restriction = st.sidebar.selectbox("Select Dietary Restriction", dietary_restrictions)
-
-# Search functionality
-search_query = st.text_input("Search for dishes:", "")
 
 # View Menu
 if menu_option == "View Menu":
@@ -110,40 +144,13 @@ if menu_option == "View Menu":
     if category:
         st.write(f"Here are the items in the {category} category:")
 
-        # Display only items that match the selected dietary restriction and search query
+        # Display only items that match the selected dietary restriction
         for item, tags in menu_items[category].items():
-            if (selected_restriction == "None" or selected_restriction.lower() in tags) and search_query.lower() in item.lower():
+            if selected_restriction == "None" or selected_restriction.lower() in tags:
                 st.write(f"- {item} ({', '.join(tags)})")
                 if st.button(f"Add {item} to Cart", key=item):
                     st.session_state.cart.append(item)
                     st.success(f"{item} added to cart!")
-
-# Customizable Orders
-def get_customization_options(item):
-    options = {
-        "Caesar Salad": ["Add Chicken", "Add Dressing"],
-        # Add more customizations
-    }
-    return options.get(item, [])
-
-if menu_option == "View Menu":
-    selected_item = st.selectbox("Select an Item", list(menu_items["Salads"].keys()))
-    customizations = get_customization_options(selected_item)
-    selected_customizations = st.multiselect("Customize your order", customizations)
-
-# Allergen Alerts
-allergens = ["dairy", "nuts", "gluten"]
-selected_allergens = st.multiselect("Select allergens to avoid", allergens)
-
-if menu_option == "View Menu":
-    for item, tags in menu_items[category].items():
-        if any(allergen in tags for allergen in selected_allergens):
-            st.write(f"- {item} (Contains allergens)")
-
-# Estimated Delivery Time
-if menu_option == "View Cart":
-    estimated_time = len(st.session_state.cart) * 5  # Assuming 5 minutes per item
-    st.write(f"Estimated delivery time: {estimated_time} minutes")
 
 # View Cart
 elif menu_option == "View Cart":
@@ -164,3 +171,6 @@ elif menu_option == "Track Order":
         process_order()
     else:
         st.write("No order placed yet.")
+
+# Add more features as needed based on the outlined functionalities.
+
