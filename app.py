@@ -53,6 +53,8 @@ if "favorites" not in st.session_state:
     st.session_state.favorites = []
 if "order_placed" not in st.session_state:
     st.session_state.order_placed = False
+if "username" not in st.session_state:
+    st.session_state.username = ""
 
 # Language selection
 language = st.sidebar.selectbox("Choose Language", ["English", "French", "Spanish"])
@@ -67,6 +69,7 @@ if st.session_state.page == "Login":
         user = authenticate_user(username, password)
         if user:
             st.session_state.authenticated = True
+            st.session_state.username = username  # Store username in session state
             st.session_state.page = "Ordering"
         else:
             st.error("Invalid username or password")
@@ -202,7 +205,7 @@ elif st.session_state.page == "Ordering":
         
         if st.button("Submit Feedback"):
             try:
-                if 'username' in st.session_state and st.session_state.username:
+                if st.session_state.username:
                     conn = sqlite3.connect('users.db')
                     c = conn.cursor()
                     c.execute('INSERT INTO feedback (username, feedback_text, rating) VALUES (?, ?, ?)',
