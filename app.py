@@ -2,7 +2,7 @@ import streamlit as st
 import sqlite3
 from hashlib import sha256
 
-# Database setup
+# Initialize the SQLite database
 def init_db():
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
@@ -11,79 +11,59 @@ def init_db():
     conn.commit()
     conn.close()
 
-def register_user(username, password):
-    conn = sqlite3.connect('users.db')
-    c = conn.cursor()
-    hashed_password = sha256(password.encode()).hexdigest()
-    try:
-        c.execute('INSERT INTO users (username, password) VALUES (?, ?)', (username, hashed_password))
-        conn.commit()
-        st.success("Registration successful!")
-    except sqlite3.IntegrityError:
-        st.error("Username already exists.")
-    conn.close()
+init_db()
 
-def verify_user(username, password):
+# Hashing function for passwords
+def hash_password(password):
+    return sha256(password.encode()).hexdigest()
+
+# Function to check user credentials
+def authenticate_user(username, password):
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
-    hashed_password = sha256(password.encode()).hexdigest()
-    c.execute('SELECT * FROM users WHERE username = ? AND password = ?', (username, hashed_password))
+    c.execute('SELECT * FROM users WHERE username = ? AND password = ?', (username, hash_password(password)))
     user = c.fetchone()
     conn.close()
     return user
 
-# Initialize database
-init_db()
+# Streamlit App
+st.title("Restaurant Menu & Ordering System")
 
-# Initialize session state for user login
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
+# Initialize session state for cart, authentication, and pages
+if "cart" not in st.session_state:
+    st.session_state.cart = []
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+if "page" not in st.session_state:
+    st.session_state.page = "Login"
 
-if "current_user" not in st.session_state:
-    st.session_state.current_user = ""
+# Display pages based on session state
+if st.session_state.page == "Login":
+    st.header("Login")
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+    if st.button("Login"):
+        user = authenticate_user(username, password)
+        if user:
+            st.session_state.authenticated = True
+            st.session_state.page = "Ordering"
+            st.success("Login successful! Redirecting to the ordering page...")
+        else:
+            st.error("Invalid username or password")
 
-# Functions for login and registration
-def login(username, password):
-    if verify_user(username, password):
-        st.session_state.logged_in = True
-        st.session_state.current_user = username
-        st.success("Logged in successfully!")
-    else:
-        st.error("Invalid username or password")
+elif st.session_state.page == "Ordering":
+    st.header("Ordering Page")
 
-def register(username, password):
-    register_user(username, password)
-
-# Streamlit app
-st.title("Food Ordering System")
-
-# Authentication page
-if not st.session_state.logged_in:
-    option = st.sidebar.selectbox("Select an option", ["Login", "Register"])
-    
-    if option == "Login":
-        st.subheader("Login")
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        if st.button("Login"):
-            login(username, password)
-    
-    elif option == "Register":
-        st.subheader("Register")
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        if st.button("Register"):
-            register(username, password)
-
-else:
-    # After login, show the ordering system
-    st.subheader("Welcome, " + st.session_state.current_user)
+    # Sidebar menu to choose between options
     menu_option = st.sidebar.selectbox(
         "Choose an option",
         ["View Menu", "View Cart", "Track Order"]
     )
 
-    # Define menu items
+    # Allow user to set dietary restrictions
+    dietary_restrictions = ["None", "Vegan", "Vegetarian", "Gluten-Free", "Dairy-Free", "Low-Sugar", "Low-Sodium", "High-Protein"]
+    selected_restriction = st.sidebar.selectbox("Select Dietary Restriction", dietary_restrictions)
+
     menu_items = {
         "Salads": {
             "Caesar Salad": ["vegetarian", "gluten-free", "low-sugar", "low-sodium"],
@@ -112,29 +92,26 @@ else:
         }
     }
 
-    dietary_restrictions = ["None", "Vegan", "Vegetarian", "Gluten-Free", "Dairy-Free", "Low-Sugar", "Low-Sodium", "High-Protein"]
-
     order_status = [
         "Order Received", "Preparing Your Order", "Cooking In Progress", "Order Packed", "Out for Delivery", "Delivered"
     ]
 
-    # Initialize session state for cart and order tracking
-    if "cart" not in st.session_state:
-        st.session_state.cart = []
+    def process_order():
+        st.write("Processing your order...")
+        for i in range(len(order_status)):
+            st.write(f"Status: {order_status[i]}")
+            time.sleep(2)
+            if i == len(order_status) - 1:
+                st.success("Your order has been delivered!")
+            else:
+                st.info(f"Next step: {order_status[i + 1]}")
 
-    if "order_placed" not in st.session_state:
-        st.session_state.order_placed = False
-
-    # Sidebar menu to choose between options
-    selected_restriction = st.sidebar.selectbox("Select Dietary Restriction", dietary_restrictions)
-    
     if menu_option == "View Menu":
         category = st.selectbox("Select a Category", list(menu_items.keys()))
         
         if category:
             st.write(f"Here are the items in the {category} category:")
 
-            # Display only items that match the selected dietary restriction
             for item, tags in menu_items[category].items():
                 if selected_restriction == "None" or selected_restriction.lower() in tags:
                     st.write(f"- {item} ({', '.join(tags)})")
@@ -156,16 +133,6 @@ else:
 
     elif menu_option == "Track Order":
         if st.session_state.order_placed:
-            def process_order():
-                st.write("Processing your order...")
-                for i in range(len(order_status)):
-                    st.write(f"Status: {order_status[i]}")
-                    time.sleep(2)
-                    if i == len(order_status) - 1:
-                        st.success("Your order has been delivered!")
-                    else:
-                        st.info(f"Next step: {order_status[i + 1]}")
-            
             process_order()
         else:
             st.write("No order placed yet.")
