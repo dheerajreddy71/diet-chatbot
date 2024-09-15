@@ -82,7 +82,7 @@ if "favorites" not in st.session_state:
 if "order_placed" not in st.session_state:
     st.session_state.order_placed = False
 
-# Page navigation
+# Display pages based on session state
 if st.session_state.page == "Login":
     st.header("Login")
     username = st.text_input("Username")
