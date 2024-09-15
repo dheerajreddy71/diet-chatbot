@@ -23,9 +23,6 @@ def setup_sample_admin():
         conn.commit()
     conn.close()
 
-init_db()
-setup_sample_admin()
-
 # Hashing function for passwords
 def hash_password(password):
     return sha256(password.encode()).hexdigest()
@@ -82,7 +79,10 @@ if "favorites" not in st.session_state:
 if "order_placed" not in st.session_state:
     st.session_state.order_placed = False
 
-# Display pages based on session state
+init_db()
+setup_sample_admin()
+
+# Page navigation
 if st.session_state.page == "Login":
     st.header("Login")
     username = st.text_input("Username")
@@ -214,6 +214,7 @@ elif st.session_state.page == "Ordering":
             st.write("No favorites yet.")
 
     elif menu_option == "Feedback":
+        st.write("Submit Feedback")
         feedback_text = st.text_area("Your Feedback")
         if st.button("Submit Feedback"):
             if st.session_state.authenticated:
