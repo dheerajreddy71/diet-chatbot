@@ -10,10 +10,6 @@ def init_db():
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users
                  (username TEXT PRIMARY KEY, password TEXT, role TEXT)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS feedback
-                 (username TEXT, feedback_text TEXT, rating INTEGER)''')
-    c.execute('''CREATE TABLE IF NOT EXISTS orders
-                 (username TEXT, order_details TEXT)''')
     conn.commit()
     conn.close()
 
@@ -32,9 +28,32 @@ def authenticate_user(username, password):
     conn.close()
     return user
 
-# Mock function to get delivery time
-def get_estimated_delivery_time():
-    return "Your order will be delivered in approximately 30-45 minutes."
+# Function to get user feedback
+def get_user_feedback():
+    conn = sqlite3.connect('feedback.db')
+    c = conn.cursor()
+    c.execute('CREATE TABLE IF NOT EXISTS feedback (username TEXT, feedback TEXT)')
+    conn.commit()
+    c.execute('SELECT * FROM feedback')
+    feedbacks = c.fetchall()
+    conn.close()
+    return feedbacks
+
+# Function to save user feedback
+def save_feedback(username, feedback_text):
+    conn = sqlite3.connect('feedback.db')
+    c = conn.cursor()
+    c.execute('CREATE TABLE IF NOT EXISTS feedback (username TEXT, feedback TEXT)')
+    c.execute('INSERT INTO feedback (username, feedback) VALUES (?, ?)', (username, feedback_text))
+    conn.commit()
+    conn.close()
+
+# Function for dark/light mode toggle
+def toggle_theme():
+    if "theme" not in st.session_state:
+        st.session_state.theme = "light"
+    st.session_state.theme = "dark" if st.session_state.theme == "light" else "light"
+    st.experimental_rerun()
 
 # Multi-language support
 def translate_text(text, target_language):
@@ -49,16 +68,16 @@ if "cart" not in st.session_state:
     st.session_state.cart = []
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
-if "admin" not in st.session_state:
-    st.session_state.admin = False
+if "admin_authenticated" not in st.session_state:
+    st.session_state.admin_authenticated = False
 if "page" not in st.session_state:
     st.session_state.page = "Login"
 if "favorites" not in st.session_state:
     st.session_state.favorites = []
 if "order_placed" not in st.session_state:
     st.session_state.order_placed = False
-if "username" not in st.session_state:
-    st.session_state.username = ""
+
+# Dark/Light mode toggle removed
 
 # Language selection
 language = st.sidebar.selectbox("Choose Language", ["English", "French", "Spanish"])
@@ -72,28 +91,25 @@ if st.session_state.page == "Login":
     if st.button("Login"):
         user = authenticate_user(username, password)
         if user:
-            st.session_state.authenticated = True
-            st.session_state.username = username  # Store username in session state
-            st.session_state.admin = user[2] == "admin"  # Set admin status based on role
-            st.session_state.page = "Ordering"
+            if user[2] == "admin":
+                st.session_state.admin_authenticated = True
+                st.session_state.page = "Admin Dashboard"
+            else:
+                st.session_state.authenticated = True
+                st.session_state.page = "Ordering"
         else:
             st.error("Invalid username or password")
-
-    st.write("Don't have an account?")
-    if st.button("Register"):
-        st.session_state.page = "Register"
 
 elif st.session_state.page == "Register":
     st.header("Register")
     new_username = st.text_input("New Username")
     new_password = st.text_input("New Password", type="password")
-    is_admin = st.checkbox("Admin")
-
     if st.button("Register"):
         conn = sqlite3.connect('users.db')
         c = conn.cursor()
         try:
-            c.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', (new_username, hash_password(new_password), "admin" if is_admin else "user"))
+            c.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
+                      (new_username, hash_password(new_password), "user"))
             conn.commit()
             st.success("Registration successful! Please log in.")
             st.session_state.page = "Login"
@@ -110,7 +126,7 @@ elif st.session_state.page == "Ordering":
     # Sidebar menu to choose between options
     menu_option = st.sidebar.selectbox(
         "Choose an option",
-        ["View Menu", "View Cart", "Track Order", "Favorites", "Feedback", "Admin - View Feedback"]
+        ["View Menu", "View Cart", "Track Order", "Favorites", "Feedback"]
     )
 
     # Allow user to set dietary restrictions
@@ -186,12 +202,6 @@ elif st.session_state.page == "Ordering":
             if st.button("Place Order"):
                 st.session_state.order_placed = True
                 st.session_state.cart = []  # Clear cart after placing order
-                conn = sqlite3.connect('users.db')
-                c = conn.cursor()
-                order_details = ', '.join(st.session_state.cart)
-                c.execute('INSERT INTO orders (username, order_details) VALUES (?, ?)', (st.session_state.username, order_details))
-                conn.commit()
-                conn.close()
                 st.success("Your order has been placed!")
         else:
             st.write("Your cart is empty.")
@@ -208,44 +218,45 @@ elif st.session_state.page == "Ordering":
             for item in st.session_state.favorites:
                 st.write(f"- {item}")
         else:
-            st.write("No favorites yet.")
+            st.write("You have no favorites yet.")
 
     elif menu_option == "Feedback":
-        st.header("Submit Feedback")
-        feedback_text = st.text_area("Enter your feedback")
-        rating = st.slider("Rating", 1, 5)
-
+        st.write("Submit Feedback")
+        feedback_text = st.text_area("Your Feedback")
         if st.button("Submit Feedback"):
-            try:
-                if st.session_state.authenticated:
-                    conn = sqlite3.connect('users.db')
-                    c = conn.cursor()
-                    c.execute('INSERT INTO feedback (username, feedback_text, rating) VALUES (?, ?, ?)',
-                              (st.session_state.username, feedback_text, rating))
-                    conn.commit()
-                    conn.close()
-                    st.success("Thank you for your feedback!")
-                else:
-                    st.error("You need to log in to submit feedback.")
-            except Exception as e:
-                st.error(f"Error: {e}")
-
-    elif menu_option == "Admin - View Feedback":
-        if not st.session_state.admin:
-            st.error("Access denied. Admins only.")
-        else:
-            st.header("Admin - View Feedback")
-            conn = sqlite3.connect('users.db')
-            c = conn.cursor()
-            c.execute('SELECT * FROM feedback')
-            feedback = c.fetchall()
-            conn.close()
-
-            if feedback:
-                for fb in feedback:
-                    st.write(f"Username: {fb[0]}")
-                    st.write(f"Feedback: {fb[1]}")
-                    st.write(f"Rating: {fb[2]}")
-                    st.write("---")
+            if st.session_state.authenticated:
+                save_feedback(username, feedback_text)
+                st.success("Feedback submitted successfully!")
             else:
-                st.write("No feedback available yet.")
+                st.error("You need to log in to submit feedback.")
+
+elif st.session_state.page == "Admin Dashboard":
+    if not st.session_state.admin_authenticated:
+        st.session_state.page = "Login"
+    
+    st.header("Admin Dashboard")
+    
+    menu_option = st.sidebar.selectbox(
+        "Admin Options",
+        ["View User Feedback", "User Orders", "Manage Users"]
+    )
+
+    if menu_option == "View User Feedback":
+        st.write("User Feedback:")
+        feedbacks = get_user_feedback()
+        for feedback in feedbacks:
+            st.write(f"User: {feedback[0]} - Feedback: {feedback[1]}")
+
+    elif menu_option == "Manage Users":
+        st.write("Manage Users")
+        # Add code here to manage users
+
+    elif menu_option == "User Orders":
+        st.write("User Orders")
+        # Add code here to manage or view user orders
+
+st.sidebar.button("Logout", on_click=lambda: st.session_state.update({
+    'authenticated': False,
+    'admin_authenticated': False,
+    'page': 'Login'
+}))
