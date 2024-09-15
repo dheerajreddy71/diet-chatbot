@@ -18,14 +18,14 @@ discounts = {"FREEDISH": 10}  # Promo code for 10% off
 users = {"user1": "password", "user2": "password123"}
 
 # User Authentication
-authenticator = stauth.Authenticate(
-    names=list(users.keys()),
-    usernames=list(users.keys()),
-    passwords=list(users.values()),
-    cookie_name="some_cookie",
-    signature_key="some_key",
-    cookie_expiry_days=1
-)
+credentials = {
+    "usernames": list(users.keys()),
+    "passwords": list(users.values()),
+    "cookie_name": "some_cookie",
+    "signature_key": "some_key",
+    "cookie_expiry_days": 1
+}
+authenticator = stauth.Authenticate(**credentials)
 name, authentication_status, username = authenticator.login("Login", "sidebar")
 
 # Translator
@@ -45,7 +45,7 @@ def search_menu(query):
 # Main Page Content
 if authentication_status:
     st.title(f"Welcome, {name}")
-
+    
     # Search Functionality
     search_query = st.text_input("Search for dishes:")
     if search_query:
@@ -76,7 +76,7 @@ if authentication_status:
 
     # Apply Promo Code
     promo_code = st.text_input("Promo Code:")
-
+    
     # Order Summary
     if order:
         st.subheader("Order Summary")
@@ -85,7 +85,7 @@ if authentication_status:
             st.write(f"{item['name']} - ${item['price']}")
         if promo_code and promo_code in discounts:
             st.success(f"Promo code applied! {discounts[promo_code]}% off")
-        st.write(f"Total: ${total_price:.2f}")
+        st.write(f"Total: ${total_price}")
 
         # Confirm and Place Order
         if st.button("Place Order"):
@@ -101,26 +101,23 @@ if authentication_status:
             feedback = st.text_area("Leave feedback:")
             if st.button("Submit Feedback"):
                 st.write(f"Thank you for your feedback! Rating: {rating}/5")
-
+    
     # Dietary Restriction Filtering
     st.sidebar.subheader("Dietary Preferences")
     gluten_free = st.sidebar.checkbox("Gluten Free")
     dairy_free = st.sidebar.checkbox("Dairy Free")
     vegan = st.sidebar.checkbox("Vegan")
-
+    
     # Filter based on preferences
     if gluten_free or dairy_free or vegan:
-        filtered_menu = [item for item in menu_items if
-                         (gluten_free and 'Gluten' not in item['allergens']) or
-                         (dairy_free and 'Dairy' not in item['allergens']) or
-                         (vegan and 'Beef' not in item['ingredients'])]
+        filtered_menu = [item for item in menu_items if (gluten_free and 'Gluten' not in item['allergens']) or (dairy_free and 'Dairy' not in item['allergens']) or (vegan and 'Beef' not in item['ingredients'])]
         if filtered_menu:
             st.sidebar.write("Filtered Menu:")
             for item in filtered_menu:
                 st.sidebar.write(item['name'])
         else:
             st.sidebar.write("No items match your dietary preferences.")
-
+    
     # Multi-language Support
     lang_option = st.sidebar.selectbox("Choose language", ['English', 'French', 'Spanish'])
     if lang_option != 'English':
