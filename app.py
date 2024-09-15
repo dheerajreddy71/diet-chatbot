@@ -43,21 +43,22 @@ if st.session_state.page == "Login":
     st.header("Login")
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
+    
     if st.button("Login"):
         user = authenticate_user(username, password)
         if user:
             st.session_state.authenticated = True
             st.session_state.page = "Ordering"
-            st.experimental_rerun()  # Redirect by re-running the app
         else:
             st.error("Invalid username or password")
 
 elif st.session_state.page == "Ordering":
     if not st.session_state.authenticated:
         st.session_state.page = "Login"
-        st.experimental_rerun()
         
     st.header("Ordering Page")
+    # Rest of the ordering code
+
 
     # Sidebar menu to choose between options
     menu_option = st.sidebar.selectbox(
