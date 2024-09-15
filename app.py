@@ -2,6 +2,7 @@ import streamlit as st
 import sqlite3
 from hashlib import sha256
 import time
+from googletrans import Translator
 
 # Initialize the SQLite database
 def init_db():
@@ -27,6 +28,22 @@ def authenticate_user(username, password):
     conn.close()
     return user
 
+# Mock function to get delivery time
+def get_estimated_delivery_time():
+    return "Your order will be delivered in approximately 30-45 minutes."
+
+# Function for dark/light mode toggle
+def toggle_theme():
+    if "theme" not in st.session_state:
+        st.session_state.theme = "light"
+    st.session_state.theme = "dark" if st.session_state.theme == "light" else "light"
+    st.experimental_rerun()
+
+# Multi-language support
+def translate_text(text, target_language):
+    translator = Translator()
+    return translator.translate(text, dest=target_language).text
+
 # Streamlit App
 st.title("Restaurant Menu & Ordering System")
 
@@ -37,6 +54,17 @@ if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 if "page" not in st.session_state:
     st.session_state.page = "Login"
+if "favorites" not in st.session_state:
+    st.session_state.favorites = []
+if "order_placed" not in st.session_state:
+    st.session_state.order_placed = False
+
+# Dark/Light mode toggle
+if st.sidebar.button("Toggle Dark/Light Mode"):
+    toggle_theme()
+
+# Language selection
+language = st.sidebar.selectbox("Choose Language", ["English", "French", "Spanish"])
 
 # Display pages based on session state
 if st.session_state.page == "Login":
@@ -57,13 +85,11 @@ elif st.session_state.page == "Ordering":
         st.session_state.page = "Login"
         
     st.header("Ordering Page")
-    # Rest of the ordering code
-
-
+    
     # Sidebar menu to choose between options
     menu_option = st.sidebar.selectbox(
         "Choose an option",
-        ["View Menu", "View Cart", "Track Order"]
+        ["View Menu", "View Cart", "Track Order", "Favorites", "Feedback"]
     )
 
     # Allow user to set dietary restrictions
@@ -114,22 +140,28 @@ elif st.session_state.page == "Ordering":
 
     if menu_option == "View Menu":
         category = st.selectbox("Select a Category", list(menu_items.keys()))
+        search_query = st.text_input("Search Menu Items")
         
         if category:
             st.write(f"Here are the items in the {category} category:")
 
             for item, tags in menu_items[category].items():
-                if selected_restriction == "None" or selected_restriction.lower() in tags:
+                if (selected_restriction == "None" or selected_restriction.lower() in tags) and search_query.lower() in item.lower():
                     st.write(f"- {item} ({', '.join(tags)})")
                     if st.button(f"Add {item} to Cart", key=item):
                         st.session_state.cart.append(item)
                         st.success(f"{item} added to cart!")
+                    if st.button(f"Add {item} to Favorites", key=item + "_fav"):
+                        st.session_state.favorites.append(item)
+                        st.success(f"{item} added to favorites!")
 
     elif menu_option == "View Cart":
         st.write("Your Cart:")
         if st.session_state.cart:
             for item in st.session_state.cart:
                 st.write(f"- {item}")
+            estimated_delivery = get_estimated_delivery_time()
+            st.write(f"Estimated Delivery Time: {estimated_delivery}")
             if st.button("Place Order"):
                 st.session_state.order_placed = True
                 st.session_state.cart = []  # Clear cart after placing order
@@ -143,6 +175,20 @@ elif st.session_state.page == "Ordering":
         else:
             st.write("No order placed yet.")
 
+    elif menu_option == "Favorites":
+        st.write("Your Favorite Items:")
+        if st.session_state.favorites:
+            for item in st.session_state.favorites:
+                st.write(f"- {item}")
+        else:
+            st.write("No favorite items yet.")
+
+    elif menu_option == "Feedback":
+        st.write("Provide your feedback:")
+        feedback = st.text_area("Enter your feedback")
+        if st.button("Submit Feedback"):
+            st.success("Thank you for your feedback!")
+            
 elif st.session_state.page == "Register":
     st.header("Register")
     new_username = st.text_input("New Username")
