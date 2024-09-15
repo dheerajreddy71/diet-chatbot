@@ -2,22 +2,13 @@ import streamlit as st
 import sqlite3
 from hashlib import sha256
 import time
-from googletrans import Translator
 
-# Initialize the SQLite databases
+# Initialize the SQLite database
 def init_db():
     conn = sqlite3.connect('users.db')
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users
                  (username TEXT PRIMARY KEY, password TEXT, role TEXT)''')
-    conn.commit()
-    conn.close()
-
-def init_feedback_db():
-    conn = sqlite3.connect('feedback.db')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS feedback
-                 (username TEXT, feedback TEXT)''')
     conn.commit()
     conn.close()
 
@@ -32,6 +23,7 @@ def setup_sample_admin():
         conn.commit()
     conn.close()
 
+init_db()
 setup_sample_admin()
 
 # Hashing function for passwords
@@ -47,27 +39,31 @@ def authenticate_user(username, password):
     conn.close()
     return user
 
-# Function to get user feedback
-def get_user_feedback():
-    conn = sqlite3.connect('feedback.db')
+# Function to get user role
+def get_user_role(username):
+    conn = sqlite3.connect('users.db')
     c = conn.cursor()
-    c.execute('SELECT * FROM feedback')
-    feedbacks = c.fetchall()
+    c.execute('SELECT role FROM users WHERE username = ?', (username,))
+    role = c.fetchone()
     conn.close()
-    return feedbacks
+    return role[0] if role else None
 
-# Function to save user feedback
-def save_feedback(username, feedback_text):
-    conn = sqlite3.connect('feedback.db')
+# Function to register a new user
+def register_user(username, password):
+    conn = sqlite3.connect('users.db')
     c = conn.cursor()
-    c.execute('INSERT INTO feedback (username, feedback) VALUES (?, ?)', (username, feedback_text))
-    conn.commit()
+    try:
+        c.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
+                  (username, hash_password(password), 'user'))
+        conn.commit()
+        st.success("Registration successful! Please log in.")
+    except sqlite3.IntegrityError:
+        st.error("Username already exists.")
     conn.close()
 
-# Multi-language support
-def translate_text(text, target_language):
-    translator = Translator()
-    return translator.translate(text, dest=target_language).text
+# Mock function to get delivery time
+def get_estimated_delivery_time():
+    return "Your order will be delivered in approximately 30-45 minutes."
 
 # Streamlit App
 st.title("Restaurant Menu & Ordering System")
@@ -77,17 +73,14 @@ if "cart" not in st.session_state:
     st.session_state.cart = []
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
-if "admin_authenticated" not in st.session_state:
-    st.session_state.admin_authenticated = False
+if "admin" not in st.session_state:
+    st.session_state.admin = False
 if "page" not in st.session_state:
     st.session_state.page = "Login"
 if "favorites" not in st.session_state:
     st.session_state.favorites = []
 if "order_placed" not in st.session_state:
     st.session_state.order_placed = False
-
-# Language selection
-language = st.sidebar.selectbox("Choose Language", ["English", "French", "Spanish"])
 
 # Display pages based on session state
 if st.session_state.page == "Login":
@@ -98,16 +91,15 @@ if st.session_state.page == "Login":
     if st.button("Login"):
         user = authenticate_user(username, password)
         if user:
-            if user[2] == "admin":
-                st.session_state.admin_authenticated = True
-                st.session_state.page = "Admin Dashboard"
-            else:
-                st.session_state.authenticated = True
-                st.session_state.page = "Ordering"
+            role = get_user_role(username)
+            if role == 'admin':
+                st.session_state.admin = True
+            st.session_state.authenticated = True
+            st.session_state.page = "Ordering" if role == 'user' else "AdminDashboard"
         else:
             st.error("Invalid username or password")
-    
-    if st.button("Register"):
+
+    if st.button("Go to Register"):
         st.session_state.page = "Register"
 
 elif st.session_state.page == "Register":
@@ -115,17 +107,8 @@ elif st.session_state.page == "Register":
     new_username = st.text_input("New Username")
     new_password = st.text_input("New Password", type="password")
     if st.button("Register"):
-        conn = sqlite3.connect('users.db')
-        c = conn.cursor()
-        try:
-            c.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
-                      (new_username, hash_password(new_password), "user"))
-            conn.commit()
-            st.success("Registration successful! Please log in.")
-            st.session_state.page = "Login"
-        except sqlite3.IntegrityError:
-            st.error("Username already exists.")
-        conn.close()
+        register_user(new_username, new_password)
+        st.session_state.page = "Login"
 
 elif st.session_state.page == "Ordering":
     if not st.session_state.authenticated:
@@ -211,64 +194,89 @@ elif st.session_state.page == "Ordering":
             st.write(f"Estimated Delivery Time: {estimated_delivery}")
             if st.button("Place Order"):
                 st.session_state.order_placed = True
-                st.session_state.cart = []  # Clear cart after order
-                process_order()
+                st.session_state.cart = []  # Clear cart after placing order
+                st.success("Your order has been placed!")
         else:
             st.write("Your cart is empty.")
 
     elif menu_option == "Track Order":
-        st.write("Track Your Order")
         if st.session_state.order_placed:
-            st.write("Your order is being processed.")
+            process_order()
         else:
-            st.write("No orders placed yet.")
+            st.write("No order placed yet.")
 
     elif menu_option == "Favorites":
-        st.write("Your Favorites:")
+        st.write("Your Favorite Items:")
         if st.session_state.favorites:
             for item in st.session_state.favorites:
                 st.write(f"- {item}")
         else:
-            st.write("You have no favorites yet.")
+            st.write("No favorites yet.")
 
     elif menu_option == "Feedback":
-        st.write("Submit Feedback")
         feedback_text = st.text_area("Your Feedback")
         if st.button("Submit Feedback"):
             if st.session_state.authenticated:
-                save_feedback(username, feedback_text)
-                st.success("Feedback submitted successfully!")
+                username = username  # Use the logged-in username
+                conn = sqlite3.connect('feedback.db')
+                c = conn.cursor()
+                c.execute('''CREATE TABLE IF NOT EXISTS feedback
+                             (username TEXT, feedback TEXT)''')
+                c.execute('INSERT INTO feedback (username, feedback) VALUES (?, ?)',
+                          (username, feedback_text))
+                conn.commit()
+                conn.close()
+                st.success("Thank you for your feedback!")
             else:
                 st.error("You need to log in to submit feedback.")
 
-elif st.session_state.page == "Admin Dashboard":
-    if not st.session_state.admin_authenticated:
+elif st.session_state.page == "AdminDashboard":
+    if not st.session_state.authenticated or not st.session_state.admin:
         st.session_state.page = "Login"
     
     st.header("Admin Dashboard")
     
-    menu_option = st.sidebar.selectbox(
-        "Admin Options",
-        ["View User Feedback", "Manage Users", "User Orders"]
-    )
+    # Display feedback from users
+    conn = sqlite3.connect('feedback.db')
+    c = conn.cursor()
+    c.execute('SELECT username, feedback FROM feedback')
+    feedback = c.fetchall()
+    conn.close()
+    
+    st.subheader("User Feedback")
+    if feedback:
+        for user_feedback in feedback:
+            st.write(f"User: {user_feedback[0]}")
+            st.write(f"Feedback: {user_feedback[1]}")
+            st.write("---")
+    else:
+        st.write("No feedback yet.")
+    
+    # Display all users
+    conn = sqlite3.connect('users.db')
+    c = conn.cursor()
+    c.execute('SELECT username FROM users WHERE role = ?', ('user',))
+    users = c.fetchall()
+    conn.close()
+    
+    st.subheader("Registered Users")
+    if users:
+        for user in users:
+            st.write(f"User: {user[0]}")
+            st.write("---")
+    else:
+        st.write("No registered users.")
 
-    if menu_option == "View User Feedback":
-        st.write("User Feedback:")
-        feedbacks = get_user_feedback()
-        for feedback in feedbacks:
-            st.write(f"User: {feedback[0]} - Feedback: {feedback[1]}")
+    # Display user orders
+    st.subheader("User Orders")
+    # Simulated orders, replace with actual order data
+    st.write("This section will display order history for users.")
 
-    elif menu_option == "Manage Users":
-        st.write("Manage Users")
-        # Add code here to manage users (list users, remove users, etc.)
-
-    elif menu_option == "User Orders":
-        st.write("User Orders")
-        # Add code here to manage or view user orders
-
-if st.session_state.authenticated or st.session_state.admin_authenticated:
-    st.sidebar.button("Logout", on_click=lambda: st.session_state.update({
-        'authenticated': False,
-        'admin_authenticated': False,
-        'page': 'Login'
-    }))
+if st.session_state.authenticated:
+    if st.button("Logout"):
+        st.session_state.authenticated = False
+        st.session_state.page = "Login"
+        st.session_state.cart = []
+        st.session_state.order_placed = False
+        st.session_state.favorites = []
+        st.session_state.admin = False
