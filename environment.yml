@@ -1,9 +1,0 @@
-name: myenv
-channels:
-  - defaults
-dependencies:
-  - python=3.8
-  - streamlit=1.38.0
-  - transformers=4.30.0
-  - streamlit-authenticator=0.3.3
-  - googletrans=4.0.0-rc1
