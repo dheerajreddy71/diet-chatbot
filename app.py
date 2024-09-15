@@ -34,24 +34,6 @@ def authenticate_user(username, password):
 def get_estimated_delivery_time():
     return "Your order will be delivered in approximately 30-45 minutes."
 
-# Function for dark/light mode toggle
-def toggle_theme():
-    if "theme" not in st.session_state:
-        st.session_state.theme = "light"
-    else:
-        st.session_state.theme = "dark" if st.session_state.theme == "light" else "light"
-
-# Sidebar option for Dark/Light mode toggle
-if st.sidebar.button("Toggle Dark/Light Mode"):
-    toggle_theme()
-
-# Apply the theme to the app
-if "theme" in st.session_state and st.session_state.theme == "dark":
-    st.write('<style>body { background-color: #111; color: white; }</style>', unsafe_allow_html=True)
-else:
-    st.write('<style>body { background-color: white; color: black; }</style>', unsafe_allow_html=True)
-
-
 # Multi-language support
 def translate_text(text, target_language):
     translator = Translator()
@@ -71,10 +53,6 @@ if "favorites" not in st.session_state:
     st.session_state.favorites = []
 if "order_placed" not in st.session_state:
     st.session_state.order_placed = False
-
-# Dark/Light mode toggle
-if st.sidebar.button("Toggle Dark/Light Mode"):
-    toggle_theme()
 
 # Language selection
 language = st.sidebar.selectbox("Choose Language", ["English", "French", "Spanish"])
