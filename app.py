@@ -10,6 +10,8 @@ def init_db():
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users
                  (username TEXT PRIMARY KEY, password TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS feedback
+                 (username TEXT, feedback_text TEXT, rating INTEGER)''')
     conn.commit()
     conn.close()
 
@@ -80,6 +82,27 @@ if st.session_state.page == "Login":
         else:
             st.error("Invalid username or password")
 
+    st.write("Don't have an account?")
+    if st.button("Register"):
+        st.session_state.page = "Register"
+
+elif st.session_state.page == "Register":
+    st.header("Register")
+    new_username = st.text_input("New Username")
+    new_password = st.text_input("New Password", type="password")
+    
+    if st.button("Register"):
+        conn = sqlite3.connect('users.db')
+        c = conn.cursor()
+        try:
+            c.execute('INSERT INTO users (username, password) VALUES (?, ?)', (new_username, hash_password(new_password)))
+            conn.commit()
+            st.success("Registration successful! Please log in.")
+            st.session_state.page = "Login"
+        except sqlite3.IntegrityError:
+            st.error("Username already exists.")
+        conn.close()
+
 elif st.session_state.page == "Ordering":
     if not st.session_state.authenticated:
         st.session_state.page = "Login"
@@ -89,7 +112,7 @@ elif st.session_state.page == "Ordering":
     # Sidebar menu to choose between options
     menu_option = st.sidebar.selectbox(
         "Choose an option",
-        ["View Menu", "View Cart", "Track Order", "Favorites", "Feedback"]
+        ["View Menu", "View Cart", "Track Order", "Favorites", "Feedback", "Admin - View Feedback"]
     )
 
     # Allow user to set dietary restrictions
@@ -184,23 +207,34 @@ elif st.session_state.page == "Ordering":
             st.write("No favorite items yet.")
 
     elif menu_option == "Feedback":
-        st.write("Provide your feedback:")
-        feedback = st.text_area("Enter your feedback")
+        st.header("Provide Your Feedback")
+        feedback_text = st.text_area("Your Feedback")
+        rating = st.slider("Rate Your Experience", 1, 5)
+        
         if st.button("Submit Feedback"):
+            conn = sqlite3.connect('users.db')
+            c = conn.cursor()
+            c.execute('INSERT INTO feedback (username, feedback_text, rating) VALUES (?, ?, ?)',
+                      (username, feedback_text, rating))
+            conn.commit()
+            conn.close()
             st.success("Thank you for your feedback!")
-            
-elif st.session_state.page == "Register":
-    st.header("Register")
-    new_username = st.text_input("New Username")
-    new_password = st.text_input("New Password", type="password")
-    if st.button("Register"):
+
+    elif menu_option == "Admin - View Feedback":
+        st.header("Admin: View Feedback")
         conn = sqlite3.connect('users.db')
         c = conn.cursor()
-        try:
-            c.execute('INSERT INTO users (username, password) VALUES (?, ?)', (new_username, hash_password(new_password)))
-            conn.commit()
-            st.success("Registration successful! Please log in.")
-            st.session_state.page = "Login"
-        except sqlite3.IntegrityError:
-            st.error("Username already exists.")
+        c.execute('SELECT * FROM feedback')
+        feedback_entries = c.fetchall()
         conn.close()
+
+        if feedback_entries:
+            for feedback in feedback_entries:
+                st.write(f"User: {feedback[0]}, Feedback: {feedback[1]}, Rating: {feedback[2]}")
+        else:
+            st.write("No feedback available yet.")
+
+# Translation for the displayed content
+if language != "English":
+    st.write("Translated Content:")
+    st.write(translate_text(st.session_state.page, language))
