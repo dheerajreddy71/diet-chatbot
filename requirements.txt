@@ -1,5 +1,4 @@
-streamlit==1.38.0
-streamlit-authenticator==0.3.3
-transformers==4.31.0
+streamlit==1.22.0
+transformers==4.30.0  # Update this version to the latest if needed
+streamlit-authenticator==0.0.10
 googletrans==4.0.0-rc1
-torch==2.0.0
