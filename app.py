@@ -63,7 +63,7 @@ def get_estimated_delivery_time():
     return "Your order will be delivered in approximately 30-45 minutes."
 
 # Streamlit App
-st.title("Restaurant Menu & Ordering System")
+st.title("Food Ordering System")
 
 # Initialize session state for cart, authentication, and pages
 if "cart" not in st.session_state:
